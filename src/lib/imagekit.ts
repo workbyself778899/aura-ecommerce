@@ -2,9 +2,9 @@ import ImageKit from "imagekit";
 
 
 const imagekit = new ImageKit({
-  publicKey: process.env.IMAGEKIT_PUBLIC_KEY!,
-  privateKey: process.env.IMAGEKIT_PRIVATE_KEY!,
-  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT!,
+  publicKey: process.env.IMAGEKIT_PUBLIC_KEY || "public_dummy",
+  privateKey: process.env.IMAGEKIT_PRIVATE_KEY || "private_dummy",
+  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || "https://ik.imagekit.io/aura",
 });
 
 /**

@@ -21,7 +21,6 @@ const CategorySchema = new Schema<ICategoryDocument>(
   { timestamps: true }
 );
 
-CategorySchema.index({ slug: 1 });
 
 const Category: Model<ICategoryDocument> =
   mongoose.models.Category ||

@@ -1,7 +1,8 @@
 import { getAdminOrders } from "@/actions/orders";
 import { formatPrice } from "@/lib/utils";
 import OrderStatusSelect from "@/components/admin/OrderStatusSelect";
-import { ShoppingCart } from "lucide-react";
+import PaymentProofModal from "@/components/admin/PaymentProofModal";
+import { ShoppingCart, QrCode, Phone } from "lucide-react";
 import Link from "next/link";
 import type { OrderStatus } from "@/types";
 
@@ -64,35 +65,53 @@ export default async function AdminOrdersPage({
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/5">
-                {["Order #", "Customer", "Items", "Total", "Payment", "Status", "Date"].map(
-                  (col) => (
-                    <th
-                      key={col}
-                      className="px-5 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                    >
-                      {col}
-                    </th>
-                  )
-                )}
+                {[
+                  "Order #",
+                  "Customer",
+                  "Items",
+                  "Total",
+                  "Channel",
+                  "Payment",
+                  "Proof",
+                  "Status",
+                  "Date",
+                ].map((col) => (
+                  <th
+                    key={col}
+                    className="px-5 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  >
+                    {col}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {orders.map((order) => {
                 const userObj =
-                  typeof order.user === "object"
-                    ? order.user
-                    : { name: "Guest", email: "N/A" };
+                  typeof order.user === "object" && order.user !== null
+                    ? (order.user as { name?: string; email?: string })
+                    : { name: order.shippingAddress?.fullName || "Guest", email: "N/A" };
+
+                const customerPhone = order.shippingAddress?.phone;
 
                 return (
                   <tr key={order._id} className="hover:bg-white/2 transition-colors">
                     <td className="px-5 py-4">
-                      <span className="text-sm font-semibold text-purple-400">
+                      <span className="text-sm font-semibold text-purple-400 font-mono">
                         {order.orderNumber}
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <p className="text-sm font-medium text-white">{userObj.name}</p>
+                      <p className="text-sm font-medium text-white">
+                        {order.shippingAddress?.fullName || userObj.name || "Customer"}
+                      </p>
                       <p className="text-xs text-gray-500">{userObj.email}</p>
+                      {customerPhone && (
+                        <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
+                          <Phone className="w-3 h-3" />
+                          <span>{customerPhone}</span>
+                        </p>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <span className="text-sm text-gray-300">
@@ -105,15 +124,40 @@ export default async function AdminOrdersPage({
                       </span>
                     </td>
                     <td className="px-5 py-4">
+                      {order.paymentMethod === "ESEWA" ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#60bb46]/15 text-[#60bb46] border border-[#60bb46]/20">
+                          eSewa
+                        </span>
+                      ) : order.paymentMethod === "QR_CODE" ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/20">
+                          <QrCode className="w-3 h-3" />
+                          QR Transfer
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                          COD
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
                       <span
                         className={`badge ${
                           order.paymentStatus === "PAID"
                             ? "bg-green-500/15 text-green-400"
-                            : "bg-amber-500/15 text-amber-400"
+                            : order.paymentStatus === "UNDER_REVIEW"
+                            ? "bg-amber-500/15 text-amber-400 animate-pulse"
+                            : "bg-red-500/15 text-red-400"
                         }`}
                       >
                         {order.paymentStatus}
                       </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      {order.paymentProof?.fileUrl ? (
+                        <PaymentProofModal order={order} />
+                      ) : (
+                        <span className="text-xs text-gray-600">—</span>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <OrderStatusSelect

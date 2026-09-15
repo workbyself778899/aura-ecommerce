@@ -11,6 +11,7 @@ import {
   LogOut,
   Zap,
   ChevronRight,
+  CreditCard,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,11 @@ const navItems = [
     href: "/admin/media",
     label: "Media Library",
     icon: Image,
+  },
+  {
+    href: "/admin/settings/payments",
+    label: "Payment Settings",
+    icon: CreditCard,
   },
 ];
 

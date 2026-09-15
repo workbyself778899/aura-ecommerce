@@ -81,7 +81,6 @@ const ProductSchema = new Schema<IProductDocument>(
 );
 
 // Indexes for search performance
-ProductSchema.index({ slug: 1 });
 ProductSchema.index({ categoryId: 1 });
 ProductSchema.index({ isPublished: 1, isFeatured: 1 });
 ProductSchema.index({ title: "text", description: "text" });

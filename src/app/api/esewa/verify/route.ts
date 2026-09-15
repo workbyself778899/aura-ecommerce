@@ -3,22 +3,18 @@ import crypto from "crypto";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
-
-const ESEWA_PRODUCT_CODE = process.env.ESEWA_PRODUCT_CODE!;
-const ESEWA_SECRET_KEY = process.env.ESEWA_SECRET_KEY!;
-const ESEWA_STATUS_URL =
-  process.env.ESEWA_STATUS_URL ??
-  "https://rc.esewa.com.np/api/epay/transaction/status/";
+import PaymentSettings from "@/models/PaymentSettings";
 
 function verifySignature(
   totalAmount: string,
   transactionUuid: string,
   productCode: string,
-  receivedSignature: string
+  receivedSignature: string,
+  secretKey: string
 ): boolean {
   const message = `total_amount=${totalAmount},transaction_uuid=${transactionUuid},product_code=${productCode}`;
   const expected = crypto
-    .createHmac("sha256", ESEWA_SECRET_KEY)
+    .createHmac("sha256", secretKey)
     .update(message)
     .digest("base64");
   return expected === receivedSignature;
@@ -29,7 +25,7 @@ function verifySignature(
  * Query param: ?data=<base64-json>
  */
 export async function GET(req: NextRequest) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
   try {
     const { searchParams } = new URL(req.url);
@@ -38,6 +34,18 @@ export async function GET(req: NextRequest) {
     if (!encoded) {
       return NextResponse.redirect(`${appUrl}/checkout?error=missing_data`);
     }
+
+    await connectDB();
+    const settings = await PaymentSettings.findOne().lean();
+
+    const esewaProductCode =
+      settings?.esewa?.productCode || process.env.ESEWA_PRODUCT_CODE || "EPAYTEST";
+    const esewaSecretKey =
+      settings?.esewa?.secretKey || process.env.ESEWA_SECRET_KEY || "8gBm/:&EnhH.1/q";
+    const esewaStatusUrl =
+      settings?.esewa?.statusUrl ||
+      process.env.ESEWA_STATUS_URL ||
+      "https://rc.esewa.com.np/api/epay/transaction/status/";
 
     // Decode eSewa response
     const decoded = JSON.parse(Buffer.from(encoded, "base64").toString("utf-8"));
@@ -57,8 +65,9 @@ export async function GET(req: NextRequest) {
     const isValid = verifySignature(
       total_amount,
       transaction_uuid,
-      ESEWA_PRODUCT_CODE,
-      receivedSignature
+      esewaProductCode,
+      receivedSignature,
+      esewaSecretKey
     );
 
     if (!isValid) {
@@ -71,10 +80,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Double-check with eSewa status API
-    const statusUrl = `${ESEWA_STATUS_URL}?product_code=${ESEWA_PRODUCT_CODE}&transaction_uuid=${transaction_uuid}&total_amount=${total_amount}`;
-    console.log("eSewa status check URL:", statusUrl);
+    const statusCheckUrl = `${esewaStatusUrl}?product_code=${esewaProductCode}&transaction_uuid=${transaction_uuid}&total_amount=${total_amount}`;
+    console.log("eSewa status check URL:", statusCheckUrl);
 
-    const statusRes = await fetch(statusUrl);
+    const statusRes = await fetch(statusCheckUrl);
     const statusData = await statusRes.json();
     console.log("eSewa status response:", statusData);
 
@@ -83,14 +92,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${appUrl}/checkout?error=unverified`);
     }
 
-    await connectDB();
-
     // Find by the transaction UUID we stored during checkout creation
     const order = await Order.findOne({ esewaTransactionId: transaction_uuid });
 
     if (!order) {
       console.error("Order not found for eSewa transaction_uuid:", transaction_uuid);
-      // Still redirect to success to avoid bad UX — the order may have been created
       return NextResponse.redirect(`${appUrl}/checkout/success`);
     }
 
@@ -112,7 +118,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return NextResponse.redirect(`${appUrl}/checkout/success`);
+    return NextResponse.redirect(`${appUrl}/checkout/success?orderNumber=${order.orderNumber}`);
   } catch (err) {
     console.error("eSewa verification error:", err);
     return NextResponse.redirect(`${appUrl}/checkout?error=server_error`);

@@ -7,7 +7,67 @@ export type OrderStatus =
   | "DELIVERED"
   | "CANCELLED";
 
-export type PaymentStatus = "UNPAID" | "PAID" | "REFUNDED";
+export type PaymentStatus = "UNPAID" | "PAID" | "UNDER_REVIEW" | "REFUNDED";
+
+export type PaymentMethod = "ESEWA" | "QR_CODE" | "CASH_ON_DELIVERY";
+
+export interface PaymentProof {
+  fileUrl: string;
+  fileName: string;
+  fileType: string;
+  notes?: string;
+  uploadedAt: string;
+}
+
+export interface IEsewaSettings {
+  enabled: boolean;
+  productCode: string;
+  secretKey: string;
+  paymentUrl: string;
+  statusUrl: string;
+}
+
+export interface IQrPaymentSettings {
+  enabled: boolean;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  branch?: string;
+  bankQrImageUrl?: string;
+  esewaQrImageUrl?: string;
+  esewaId?: string;
+  instructions?: string;
+}
+
+export interface IPaymentSettings {
+  _id?: string;
+  esewa: IEsewaSettings;
+  qrPayment: IQrPaymentSettings;
+  cashOnDelivery: {
+    enabled: boolean;
+  };
+  updatedAt?: string;
+}
+
+export interface IPublicPaymentSettings {
+  esewa: {
+    enabled: boolean;
+  };
+  qrPayment: {
+    enabled: boolean;
+    bankName: string;
+    accountName: string;
+    accountNumber: string;
+    branch?: string;
+    bankQrImageUrl?: string;
+    esewaQrImageUrl?: string;
+    esewaId?: string;
+    instructions?: string;
+  };
+  cashOnDelivery: {
+    enabled: boolean;
+  };
+}
 
 export interface ImageObject {
   fileId: string;
@@ -27,6 +87,8 @@ export interface ProductVariant {
 }
 
 export interface Address {
+  fullName?: string;
+  phone?: string;
   line1: string;
   line2?: string;
   city: string;
@@ -97,6 +159,9 @@ export interface IOrder {
   status: OrderStatus;
   totalAmount: number;
   paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod;
+  paymentProof?: PaymentProof;
+  customerNotes?: string;
   esewaTransactionId?: string;
   items: OrderItem[];
   shippingAddress: Address;

@@ -1,14 +1,27 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
-import type { OrderStatus, PaymentStatus } from "@/types";
+import type { OrderStatus, PaymentStatus, PaymentMethod } from "@/types";
 
 const AddressSchema = new Schema(
   {
+    fullName: { type: String },
+    phone: { type: String },
     line1: { type: String, required: true },
     line2: { type: String },
     city: { type: String, required: true },
     state: { type: String, required: true },
     postalCode: { type: String, required: true },
-    country: { type: String, required: true },
+    country: { type: String, required: true, default: "NP" },
+  },
+  { _id: false }
+);
+
+const PaymentProofSchema = new Schema(
+  {
+    fileUrl: { type: String, required: true },
+    fileName: { type: String, default: "" },
+    fileType: { type: String, default: "" },
+    notes: { type: String, default: "" },
+    uploadedAt: { type: Date, default: Date.now },
   },
   { _id: false }
 );
@@ -32,9 +45,16 @@ export interface IOrderDocument extends Document {
   status: OrderStatus;
   totalAmount: number;
   paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod;
+  paymentProof?: {
+    fileUrl: string;
+    fileName: string;
+    fileType: string;
+    notes?: string;
+    uploadedAt: Date;
+  };
+  customerNotes?: string;
   esewaTransactionId?: string;
-  stripeCheckoutSessionId?: string;
-  stripePaymentIntentId?: string;
   items: Array<{
     productId: mongoose.Types.ObjectId;
     title: string;
@@ -45,6 +65,8 @@ export interface IOrderDocument extends Document {
     sku?: string;
   }>;
   shippingAddress: {
+    fullName?: string;
+    phone?: string;
     line1: string;
     line2?: string;
     city: string;
@@ -69,12 +91,17 @@ const OrderSchema = new Schema<IOrderDocument>(
     totalAmount: { type: Number, required: true, min: 0 },
     paymentStatus: {
       type: String,
-      enum: ["UNPAID", "PAID", "REFUNDED"],
+      enum: ["UNPAID", "PAID", "UNDER_REVIEW", "REFUNDED"],
       default: "UNPAID",
     },
+    paymentMethod: {
+      type: String,
+      enum: ["ESEWA", "QR_CODE", "CASH_ON_DELIVERY"],
+      default: "ESEWA",
+    },
+    paymentProof: { type: PaymentProofSchema },
+    customerNotes: { type: String },
     esewaTransactionId: { type: String },
-    stripeCheckoutSessionId: { type: String },
-    stripePaymentIntentId: { type: String },
     items: { type: [OrderItemSchema], required: true },
     shippingAddress: { type: AddressSchema, required: true },
     trackingNumber: { type: String },
@@ -83,8 +110,9 @@ const OrderSchema = new Schema<IOrderDocument>(
 );
 
 OrderSchema.index({ user: 1, createdAt: -1 });
-OrderSchema.index({ orderNumber: 1 });
 OrderSchema.index({ status: 1 });
+OrderSchema.index({ paymentStatus: 1 });
+OrderSchema.index({ paymentMethod: 1 });
 
 const Order: Model<IOrderDocument> =
   mongoose.models.Order ||

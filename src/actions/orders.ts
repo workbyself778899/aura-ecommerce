@@ -21,10 +21,20 @@ type LeanOrder = Record<string, unknown> & {
 };
 
 function serializeOrder(doc: LeanOrder): IOrder {
+  const proof = doc.paymentProof as Record<string, unknown> | undefined;
   return {
     ...doc,
     _id: String(doc._id),
     user: typeof doc.user === "object" && doc.user !== null ? doc.user : String(doc.user),
+    paymentProof: proof
+      ? {
+          ...proof,
+          uploadedAt:
+            proof.uploadedAt instanceof Date
+              ? proof.uploadedAt.toISOString()
+              : String(proof.uploadedAt ?? ""),
+        }
+      : undefined,
     createdAt: doc.createdAt instanceof Date ? doc.createdAt.toISOString() : String(doc.createdAt ?? ""),
     updatedAt: doc.updatedAt instanceof Date ? doc.updatedAt.toISOString() : String(doc.updatedAt ?? ""),
   } as IOrder;

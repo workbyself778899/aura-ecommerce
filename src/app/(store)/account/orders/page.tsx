@@ -81,6 +81,29 @@ export default async function UserOrdersPage() {
                     </p>
                   </div>
                   <div>
+                    <span className="text-xs text-gray-500 uppercase font-medium block">Payment</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-xs font-semibold text-gray-300">
+                        {order.paymentMethod === "ESEWA"
+                          ? "eSewa"
+                          : order.paymentMethod === "QR_CODE"
+                          ? "QR Transfer"
+                          : "COD"}
+                      </span>
+                      <span
+                        className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border ${
+                          order.paymentStatus === "PAID"
+                            ? "bg-green-500/10 text-green-400 border-green-500/20"
+                            : order.paymentStatus === "UNDER_REVIEW"
+                            ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                            : "bg-red-500/10 text-red-400 border-red-500/20"
+                        }`}
+                      >
+                        {order.paymentStatus}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
                     <span
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${
                         statusColors[order.status]
@@ -91,6 +114,26 @@ export default async function UserOrdersPage() {
                     </span>
                   </div>
                 </div>
+
+                {/* Proof attachment link if QR code */}
+                {order.paymentProof?.fileUrl && (
+                  <div className="px-4 py-2.5 rounded-xl bg-purple-950/20 border border-purple-500/20 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className="text-purple-300">
+                      Payment Proof Uploaded:{" "}
+                      <span className="text-white font-medium">
+                        {order.paymentProof.fileName || "Receipt"}
+                      </span>
+                    </span>
+                    <a
+                      href={order.paymentProof.fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-purple-400 hover:text-purple-300 underline font-medium"
+                    >
+                      View Submitted Receipt &rarr;
+                    </a>
+                  </div>
+                )}
 
                 {/* Items */}
                 <div className="space-y-3">
