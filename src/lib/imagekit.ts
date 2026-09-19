@@ -1,25 +1,66 @@
-import ImageKit from "imagekit";
-
+import ImageKit, { toFile } from "@imagekit/nodejs";
 
 const imagekit = new ImageKit({
-  publicKey: process.env.IMAGEKIT_PUBLIC_KEY || "public_dummy",
   privateKey: process.env.IMAGEKIT_PRIVATE_KEY || "private_dummy",
-  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || "https://ik.imagekit.io/aura",
 });
+
+export interface UploadOptions {
+  file: Buffer | string | File;
+  fileName: string;
+  folder?: string;
+  tags?: string[];
+  useUniqueFileName?: boolean;
+}
+
+export interface UploadResponse {
+  fileId: string;
+  url: string;
+  thumbnailUrl: string;
+  filePath: string;
+  name: string;
+}
+
+/**
+ * Upload a file to ImageKit using @imagekit/nodejs SDK.
+ */
+export async function upload(options: UploadOptions): Promise<UploadResponse> {
+  const fileToUpload = Buffer.isBuffer(options.file)
+    ? await toFile(options.file, options.fileName)
+    : options.file;
+
+  const res = await imagekit.files.upload({
+    file: fileToUpload,
+    fileName: options.fileName,
+    folder: options.folder,
+    tags: options.tags,
+    useUniqueFileName: options.useUniqueFileName,
+  });
+
+  return {
+    fileId: res.fileId ?? "",
+    url: res.url ?? "",
+    thumbnailUrl: res.thumbnailUrl ?? res.url ?? "",
+    filePath: res.filePath ?? "",
+    name: res.name ?? options.fileName,
+  };
+}
+
+// Bind upload onto imagekit instance for backward compatibility with `imagekit.upload(...)`
+Object.assign(imagekit, { upload });
 
 /**
  * Generate signed authentication parameters for client-side uploads.
  * Call this from the /api/imagekit/auth route.
  */
 export function getAuthParams() {
-  return imagekit.getAuthenticationParameters();
+  return imagekit.helper.getAuthenticationParameters();
 }
 
 /**
  * Delete a single file from ImageKit by its fileId.
  */
 export async function deleteFile(fileId: string): Promise<void> {
-  await imagekit.deleteFile(fileId);
+  await imagekit.files.delete(fileId);
 }
 
 /**
@@ -35,7 +76,9 @@ export async function bulkDeleteFiles(fileIds: string[]): Promise<void> {
     chunks.push(fileIds.slice(i, i + 100));
   }
 
-  await Promise.all(chunks.map((chunk) => imagekit.bulkDeleteFiles(chunk)));
+  await Promise.all(
+    chunks.map((chunk) => imagekit.files.bulk.delete({ fileIds: chunk }))
+  );
 }
 
 /**
@@ -69,5 +112,7 @@ export function buildImageUrl(
   return `${base}/tr:${transforms.join(",")}${path}`;
 }
 
-export default imagekit;
+export default imagekit as typeof imagekit & {
+  upload: typeof upload;
+};
 
